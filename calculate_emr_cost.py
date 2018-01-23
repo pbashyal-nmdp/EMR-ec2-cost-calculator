@@ -34,23 +34,15 @@ class Ec2timings:
         :param termination_ts: the termination time string
         :return: the lifetime of a single instance in hours
         """
-        if len(creation_ts) == 32:
-            date_format = '%Y-%m-%d %H:%M:%S.%f+00:00'
-            creation_ts = \
-            time.mktime(time.strptime(creation_ts, date_format))
-        else:
-            date_format = '%Y-%m-%d %H:%M:%S+00:00'
-            creation_ts = \
-            time.mktime(time.strptime(creation_ts, date_format))
+        date_format = '%Y-%m-%d %H:%M:%S.%f'
+        i = creation_ts.rfind('-')
+        creation_ts = creation_ts[0:i]
+        creation_ts = time.mktime(time.strptime(creation_ts, date_format))
 
-        if len(termination_ts) == 32:
-            date_format = '%Y-%m-%d %H:%M:%S.%f+00:00'
-            termination_ts = \
-            time.mktime(time.strptime(termination_ts, date_format))
-        else:
-            date_format = '%Y-%m-%d %H:%M:%S+00:00'
-            termination_ts = \
-            time.mktime(time.strptime(termination_ts, date_format))
+        i = termination_ts.rfind('-')
+        termination_ts = termination_ts[0:i]
+        termination_ts = time.mktime(time.strptime(termination_ts, date_format))
+
         return creation_ts, termination_ts
 
     def _get_lifetime(self, creation_ts, termination_ts):
@@ -93,7 +85,10 @@ class EMR_cost_calculator:
             sub_total = 0
             for i in response['Instances']:
                 total_instances = total_instances + 1
-                c = Ec2timings(str(i['Status']['Timeline']['CreationDateTime']),str(i['Status']['Timeline']['EndDateTime']),price).cost
+                creation_date_time = i['Status']['Timeline']['CreationDateTime']
+                end_date_time = i['Status']['Timeline']['EndDateTime']
+                timings = Ec2timings(str(creation_date_time), str(end_date_time), price)
+                c = timings.cost
                 sub_total += c
             try:
                 marker = response['Marker']
@@ -148,12 +143,13 @@ class EMR_cost_calculator:
 def parseArgs():
     """parse command line arguments
     Returns:
-        dictionary of parsed arguments
+        dictionary of pars"Cluster ids are : %s", ed arguments
     """
 
     scriptname = "calculate_emr_cost.py"
     parser = argparse.ArgumentParser(scriptname)
     parser.add_argument('-c','--cluster-id',dest="clusterid",required=True,
+                        nargs = "+",
                         help='Provide the emr cluster-id to calculate the total cost')
     return(vars(parser.parse_args()))
 
@@ -171,11 +167,14 @@ def main(**kwargs):
         main(**args)
     """
     # get the startup params
-    clusterid = kwargs.get('clusterid')
+    cluster_ids = kwargs.get('clusterid')
 
-    print("your clusterid - %s in region %s" %(clusterid,client.meta.region_name))
-    print("Total cost of the EMR $%s " %str(EMR_cost_calculator(clusterid).totalcost))
-    print("=========================")
+    print("Cluster ids are :", cluster_ids)
+
+    for cluster_id in cluster_ids:
+        print("your clusterid - %s in region %s" %(cluster_id,client.meta.region_name))
+        print("Total cost of the EMR $%s " %str(EMR_cost_calculator(cluster_id).totalcost))
+        print("=========================")
 
 
 

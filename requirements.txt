@@ -1,4 +1,4 @@
 boto3
 awscli
-PyYAML==3.11
+PyYAML==3.12
 argparse==1.2.1
